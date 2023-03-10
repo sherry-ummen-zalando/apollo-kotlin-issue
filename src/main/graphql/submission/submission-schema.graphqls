@@ -1,0 +1,31 @@
+type Example {
+  entityId: ID!
+}
+
+input ExampleInput {
+  entityId: ID!
+}
+
+type StatusExample {
+  entityId: ID!
+}
+
+enum ProcessingStatus {
+  Complete
+  Processing
+}
+
+type Mutation {
+  updateExample(
+    "Content's update input." input: ExampleInput!,
+    ): ProcessingStatus
+}
+
+type StatusQuery {
+  statusExample(entityIds: [ID!]!): [StatusExample!]
+}
+
+schema {
+  query: StatusQuery
+  mutation: Mutation
+}

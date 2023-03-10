@@ -1,0 +1,188 @@
+import org.jetbrains.kotlin.gradle.dsl.KotlinCompile
+
+buildscript {
+  ext {
+    springBootVersion = '2.7.4'
+  }
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
+  }
+}
+
+plugins {
+  id "org.openapi.generator" version "6.2.1"
+  id "com.diffplug.spotless" version "6.14.0"
+  id "org.springdoc.openapi-gradle-plugin" version "1.6.0"
+  id "org.jetbrains.kotlin.jvm" version "1.6.20"
+  id "com.apollographql.apollo3" version "3.7.4"
+  id 'org.jetbrains.kotlin.plugin.lombok' version '1.6.20'
+  id 'io.freefair.lombok' version '5.3.0'
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'jacoco'
+
+version = '1.0.0-SNAPSHOT'
+sourceCompatibility = 16
+targetCompatibility = 16
+
+bootJar {
+  archiveFileName = "${archiveBaseName.get()}.${archiveExtension.get()}"
+}
+
+repositories {
+  mavenCentral()
+  maven { url 'https://jitpack.io' } //everit JSON schema validation library
+}
+
+ext {
+  opentracingServletVersion = '4.2.3'
+  problemSpringWebVersion = '0.27.0'
+  twintipSpringWebVersion = '1.2.0'
+  tokensSpringBootStarterVersion = '0.13.0'
+  tokensVersion = '0.14.1'
+  failsafeActuatorVersion = '1.0.0'
+  mockitoVersion = '5.1.1'
+  jsonPatchVersion = '1.13'
+  springdocVersion = '1.6.14'
+  lombokVersion = '1.18.24'
+}
+
+bootRun {
+  systemProperties["spring.profiles.active"] = "local"
+}
+
+dependencies {
+  implementation platform(org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES)
+  implementation(platform("org.apache.logging.log4j:log4j-bom:2.19.0"))
+  implementation 'commons-validator:commons-validator:1.7'
+
+  compileOnly "org.projectlombok:lombok:${lombokVersion}"
+  annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+  implementation "org.springframework.boot:spring-boot-starter-undertow"
+  implementation "org.springframework.boot:spring-boot-starter-web"
+  implementation "org.springframework.boot:spring-boot-starter-security"
+  implementation "org.springframework.boot:spring-boot-starter-oauth2-resource-server"
+  implementation "org.springframework.boot:spring-boot-starter-actuator"
+  implementation "org.springframework.boot:spring-boot-starter-aop"
+
+  implementation "org.springframework.boot:spring-boot-devtools"
+
+  implementation "io.dropwizard.metrics:metrics-core"
+  implementation "io.dropwizard.metrics:metrics-annotation"
+  implementation "io.dropwizard.metrics:metrics-jvm"
+
+  implementation "com.lightstep.tracer:lightstep-tracer-jre-bundle:0.30.5"
+
+// SpringDoc
+  implementation "org.springdoc:springdoc-openapi-ui:${springdocVersion}",
+      "org.springdoc:springdoc-openapi-data-rest:${springdocVersion}"
+
+  implementation "io.opentracing.contrib:opentracing-concurrent:0.4.0"
+
+  implementation "com.github.java-json-tools:json-patch:${jsonPatchVersion}"
+
+  implementation "com.fasterxml.jackson.datatype:jackson-datatype-guava"
+  implementation "com.fasterxml.jackson.datatype:jackson-datatype-pcollections"
+  implementation "com.fasterxml.jackson.datatype:jackson-datatype-hppc"
+  implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310"
+  implementation "com.fasterxml.jackson.datatype:jackson-datatype-jdk8"
+  implementation "com.fasterxml.jackson.datatype:jackson-datatype-json-org"
+  implementation "com.fasterxml.jackson.module:jackson-module-parameter-names"
+  implementation "com.fasterxml.jackson.core:jackson-databind"
+  implementation "com.fasterxml.jackson.core:jackson-annotations"
+
+  implementation 'org.aspectj:aspectjrt:1.9.19'
+
+  // database
+  implementation "org.springframework.boot:spring-boot-configuration-processor"
+  implementation "org.apache.bval:bval-jsr:2.0.6"
+  implementation group: 'software.amazon.awssdk', name: 's3', version: '2.19.28'
+
+  implementation 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.6.20'
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.4.3'
+  implementation "com.apollographql.apollo3:apollo-runtime:3.7.4"
+  implementation 'io.github.microutils:kotlin-logging-jvm:2.0.11'
+
+  // test
+  testImplementation "com.github.everit-org.json-schema:org.everit.json.schema:1.14.1"
+  testImplementation "net.jqwik:jqwik:1.7.2"
+  testImplementation "org.springframework.boot:spring-boot-starter-test"
+  testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+  testImplementation "io.opentracing:opentracing-mock:0.33.0"
+  testImplementation("org.junit.vintage:junit-vintage-engine") {
+    exclude group: "org.hamcrest", module: "hamcrest-core"
+  }
+  testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
+  testAnnotationProcessor("org.projectlombok:lombok:${lombokVersion}")
+}
+
+compileJava {
+  options.compilerArgs = ['-parameters']
+  dependsOn(processResources)
+}
+
+jacoco {
+  toolVersion = "0.8.8"
+}
+
+jacocoTestReport {
+  reports {
+    xml.required = true
+    html.required = true
+  }
+}
+
+check.dependsOn jacocoTestReport
+
+test {
+  useJUnitPlatform {
+    includeEngines 'junit-vintage'
+    includeEngines 'jqwik'
+  }
+}
+
+openApiValidate {
+  inputSpec = "$rootDir/swagger.yaml".toString()
+  recommend = true
+}
+
+spotless {
+// optional: limit format enforcement to just the files changed by this feature branch
+  format 'misc', {
+    // define the files to apply `misc` to
+    target '*.gradle', '*.md', '.gitignore'
+    targetExclude '**/build/**', '**/bin/**', '**/.settings/**', '*.gradle'
+    // define the steps to apply to those files
+    trimTrailingWhitespace()
+    indentWithTabs() // or spaces. Takes an integer argument if you don't like 4
+    endWithNewline()
+  }
+  java {
+    // apply a specific flavor of google-java-format
+    googleJavaFormat()
+  }
+}
+
+sourceSets {
+  main.kotlin.srcDirs += 'src/main/kotlin'
+}
+
+tasks.withType(KotlinCompile).configureEach {
+  kotlinOptions.jvmTarget = JavaVersion.VERSION_16
+  kotlinOptions.freeCompilerArgs = ["-Xjsr305=strict","-Xno-optimized-callable-references"]
+}
+
+apollo {
+  generateKotlinModels.set(true)
+  service("submission") {
+    sourceFolder.set("submission")
+    packageName.set("com.example.apollokotlinclient.submission")
+  }
+}
+
